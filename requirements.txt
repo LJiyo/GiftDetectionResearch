@@ -1,8 +1,9 @@
 ftfy
 packaging
 regex
+seaborn
 tqdm
 torch
 torchvision
 ultralytics
-git+https://github.com/openai/CLIP.git
+#git+https://github.com/openai/CLIP.git
