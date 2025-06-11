@@ -128,7 +128,7 @@ print("#### YOLO.SHOW ###")
 yolo_results[0].show()
 print("### End of YOLO results ###")
 """
-prompts = ["a gift recieved", "a wrapped box", "a toy", "a memento", "a birthday present", "a souvenir"] # prompts
+prompts = ["a gift received", "a wrapped box", "a toy", "a memento", "a birthday present", "a souvenir"] # prompts
 
 print("### Getting Similarities from CLIP...")
 for cropped_img in crops:
@@ -166,20 +166,20 @@ try:
     cosine_scores = []
     for img in crops:  # your object detections as PIL Images
         scores = Compare(img, prompts)
-        gift_score = scores[0]
-    cosine_scores.append(gift_score)
+        print(scores)
+        #gift_score = scores[0]
+    cosine_scores.append(scores)
 except:
     print("--- Could not get scores !! ---")
     exit() # end program
 
 print("### Plotting Histogram...")
 plt.figure(figsize=(8,5))
-sb.histplot(cosine_scores, bins=20, kde=True, color="skyblue")
-
-plt.title("Cosine Similarity to 'gifts'")
-plt.xlabel("Cosine Similarity Score")
+sb.histplot(cosine_scores, bins=10, kde=True, color="skyblue")
+plt.title("Cosine Similarity Across All 6 prompts")
+plt.xlabel("Cosine Similarity Scores")
 plt.ylabel("Frequency")
 plt.grid(True)
-plt.tight_layout()
+#plt.tight_layout()
 plt.show()
 print("### END OF PROGRAM  ###")
