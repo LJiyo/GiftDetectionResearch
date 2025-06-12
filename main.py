@@ -163,38 +163,27 @@ print("### Getting Cosine Scores...")
 
 preds_avg = [0] * LIST_SIZE # List to store average totals of all six predictions
 # for testing outside try  statement
-cosine_scores = []
-text_features = text_features(PROMPTS)
-for img in crops:  # your object detections as PIL Images
-    img_features = image_features(img)
-    scores = Compare(img, PROMPTS)
-    print(scores)
-
-    index = scores.argmax() # index of max score 
-    val = scores.max() # max value within scores
-    preds_avg[index] += val
-    print(preds_avg[index])
-cosine_scores.append(scores) 
-# averages for each prompt
-for preds in preds_avg:
-    preds = preds/NUM_IMGS
-print("Preds_avg", preds_avg)
-"""
 try:
     cosine_scores = []
-    text_features = Text(PROMPTS)
+    text_features = text_features(PROMPTS)
     for img in crops:  # your object detections as PIL Images
-        img_features = Images(img)
+        img_features = image_features(img)
         scores = Compare(img, PROMPTS)
-        gift_score = max(scores[0])
         print(scores)
-        print(gift_score)
-        #gift_score = scores[0]
-    cosine_scores.append(scores)
+
+        index = scores.argmax() # index of max score 
+        val = scores.max() # max value within scores
+        preds_avg[index] += val
+        print(preds_avg[index])
+    cosine_scores.append(scores) 
+    # averages for each prompt
+    for preds in preds_avg:
+        preds = preds/NUM_IMGS
+    print("Preds_avg", preds_avg)
 except:
     print("--- Could not get scores !! ---")
     exit() # end program
-"""
+
 print("### CONFUSION MATRIX ###")
 predicted_labels = [1 if score > THRESHOLD else 0 for score in preds_avg]
 
