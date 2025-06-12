@@ -1,6 +1,7 @@
 ftfy
 packaging
 regex
+scikit-learn
 seaborn
 tqdm
 torch

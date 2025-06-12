@@ -6,13 +6,22 @@ import matplotlib.pyplot as plt
 import numpy as np
 import cv2 # OpenCV
 import seaborn  as sb
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, classification_report
 import pathlib
 from PIL import Image
 from ultralytics import YOLO  
 
 import data.val2017 as img_files # image files
-
+# Constants
 IMG_RESIZE = (224, 224)
+IMG_PATH = "data/COCOval17_200"
+#IMG_PATH = "000000002592.jpg"
+LIST_SIZE = 6
+NUM_IMGS = 215
+PROMPTS = ["a gift received", "a wrapped box", "a toy", "a memento", "a birthday present", "a souvenir"] # prompts
+TRUE_LABELS = [1, 0, 1, 0, 1, 1] # Ground Truth of what is acceptable as a 'gift' from the prompts
+THRESHOLD = 0.6 # acceptance threshold
+DIVISION_MATRIX = [NUM_IMGS] * LIST_SIZE # [215]*6 = [215, 215, 215, 215, 215, 215]
 
 # Load models
 print("### Loading CLIP Model: ViT-L/14 ###")
@@ -35,17 +44,19 @@ def get_img_paths(directory):
 
 # Functions for CLIP, copied from https://www.youtube.com/watch?v=4LpVRQptdzc by Tech Watt
 # Gets the image embeddings
-def Images(image):
+def image_features(image):
     processed_image = preprocess(image).unsqueeze(0).to(device)
     with torch.no_grad():
-        image_embeddings = clip_model.encode_image(processed_image)
-    return image_embeddings
+        image_embedding = clip_model.encode_image(processed_image) 
+    image_embedding /= image_embedding.norm(dim=1, keepdim=True) # values are normalised     
+    return image_embedding
 
 # Gets the text embeddings
-def Text(text):
+def text_features(text):
     text_tokens = clip.tokenize(text).to(device)
     with torch.no_grad():
-        text_embedding = clip_model.encode_text(text_tokens)
+        text_embedding = clip_model.encode_text(text_tokens) 
+    text_embedding /= text_embedding.norm(dim=1, keepdim=True) # values are normalised 
     return text_embedding
 
 # Compare image to text captions
@@ -59,14 +70,10 @@ def Compare(image, text):
         probs = logits_per_image.softmax(dim=-1).cpu().numpy()
         return np.ravel(probs)
 
+# =====================================
 # Load image
-IMG_PATH = "data/COCOval17_200"
-#IMG_PATH = "000000002592.jpg"
-#img = Image.open('000000002592.jpg')
-#print("### Loading Image...")
 try:
     print("## Loading image from path...")
-    
     # Yolov5 detection
     print("### Detecting with YOLOv5n...")
     yolo_results = yolo5(IMG_PATH)
@@ -76,8 +83,6 @@ try:
 except:
     print("--- Could not retrieve image from path and perform detection ! ---")
     exit() # end program
-
-#torch.tensor(IMG_PATH)
 
 #img = img.resize(IMG_RESIZE)
 
@@ -128,15 +133,15 @@ print("#### YOLO.SHOW ###")
 yolo_results[0].show()
 print("### End of YOLO results ###")
 """
-prompts = ["a gift received", "a wrapped box", "a toy", "a memento", "a birthday present", "a souvenir"] # prompts
 
-print("### Getting Similarities from CLIP...")
-for cropped_img in crops:
-    similarity = Compare(image=cropped_img, text=prompts)
-""""
+#print("### Getting Similarities from CLIP...")
+"""
 try:
+    text_features = Text(PROMPTS) 
     for cropped_img in crops:
-        similarity = Compare(image=cropped_img, text=prompts)
+        img_features = Images(cropped_img)
+
+        similarity = Compare(image=cropped_img, text=PROMPTS)
 except:
     print("--- An error occurred ! ---")
     exit() # end program
@@ -151,35 +156,60 @@ for i, box in enumerate(boundboxes):
     similarity_result = Compare(image=crop_pil, text=prompts) # using loaded image and text list, still just CLIP, NEED TO CONNECT WITH YOLO
     print(similarity_result)
 """
-print("=== ### Results ### ===")
-# Visualise results
 
+# Visualise results
+print("=== ### Results ### ===")
 print("### Getting Cosine Scores...")
-"""
+
+preds_avg = [0] * LIST_SIZE # List to store average totals of all six predictions
+# for testing outside try  statement
 cosine_scores = []
+text_features = text_features(PROMPTS)
 for img in crops:  # your object detections as PIL Images
-    scores = Compare(img, prompts)
-    gift_score = scores[0]
-    cosine_scores.append(gift_score)
+    img_features = image_features(img)
+    scores = Compare(img, PROMPTS)
+    print(scores)
+
+    index = scores.argmax() # index of max score 
+    val = scores.max() # max value within scores
+    preds_avg[index] += val
+    print(preds_avg[index])
+cosine_scores.append(scores) 
+# averages for each prompt
+for preds in preds_avg:
+    preds = preds/NUM_IMGS
+print("Preds_avg", preds_avg)
 """
 try:
     cosine_scores = []
+    text_features = Text(PROMPTS)
     for img in crops:  # your object detections as PIL Images
-        scores = Compare(img, prompts)
+        img_features = Images(img)
+        scores = Compare(img, PROMPTS)
+        gift_score = max(scores[0])
         print(scores)
+        print(gift_score)
         #gift_score = scores[0]
     cosine_scores.append(scores)
 except:
     print("--- Could not get scores !! ---")
     exit() # end program
+"""
+print("### CONFUSION MATRIX ###")
+predicted_labels = [1 if score > THRESHOLD else 0 for score in preds_avg]
+
+# Create the confusion matrix
+cm = confusion_matrix(TRUE_LABELS, predicted_labels)
+ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=["Not Gift", "Gift"]).plot()
+
 
 print("### Plotting Histogram...")
 plt.figure(figsize=(8,5))
-sb.histplot(cosine_scores, bins=10, kde=True, color="skyblue")
+sb.histplot(cosine_scores, bins=20, kde=True, color="skyblue")
 plt.title("Cosine Similarity Across All 6 prompts")
 plt.xlabel("Cosine Similarity Scores")
 plt.ylabel("Frequency")
 plt.grid(True)
-#plt.tight_layout()
+plt.tight_layout()
 plt.show()
 print("### END OF PROGRAM  ###")
