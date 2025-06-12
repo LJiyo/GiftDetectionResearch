@@ -1,26 +1,23 @@
-import clip.model
 import torch
 import clip
-import  glob
 import matplotlib.pyplot as plt
 import numpy as np
 import cv2 # OpenCV
 import seaborn  as sb
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, classification_report
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, precision_recall_curve, average_precision_score
 import pathlib
 from PIL import Image
 from ultralytics import YOLO  
 
-import data.val2017 as img_files # image files
 # Constants
 IMG_RESIZE = (224, 224)
-IMG_PATH = "data/COCOval17_200"
+IMG_PATH = "data/COCO200&Toys" # Data source
 #IMG_PATH = "000000002592.jpg"
 LIST_SIZE = 6
 NUM_IMGS = 215
-PROMPTS = ["a gift received", "a wrapped box", "a toy", "a memento", "a birthday present", "a souvenir"] # prompts
+PROMPTS = ["a gift received", "not a gift", "a toy", "a memento", "a birthday present", "a souvenir"] # prompts
 TRUE_LABELS = [1, 0, 1, 0, 1, 1] # Ground Truth of what is acceptable as a 'gift' from the prompts
-THRESHOLD = 0.6 # acceptance threshold
+THRESHOLD = 0.7 # acceptance threshold
 DIVISION_MATRIX = [NUM_IMGS] * LIST_SIZE # [215]*6 = [215, 215, 215, 215, 215, 215]
 
 # Load models
@@ -174,7 +171,7 @@ try:
         index = scores.argmax() # index of max score 
         val = scores.max() # max value within scores
         preds_avg[index] += val
-        print(preds_avg[index])
+        print("preds_avg for: ", index, " is ", preds_avg[index])
     cosine_scores.append(scores) 
     # averages for each prompt
     for preds in preds_avg:
@@ -191,13 +188,26 @@ predicted_labels = [1 if score > THRESHOLD else 0 for score in preds_avg]
 cm = confusion_matrix(TRUE_LABELS, predicted_labels)
 ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=["Not Gift", "Gift"]).plot()
 
+# Compute precision-recall values
+precision, recall, thresholds = precision_recall_curve(TRUE_LABELS, preds_avg)
+ap_score = average_precision_score(TRUE_LABELS, preds_avg)
 
-print("### Plotting Histogram...")
+
 plt.figure(figsize=(8,5))
-sb.histplot(cosine_scores, bins=20, kde=True, color="skyblue")
+print("### Plotting PR Curve...")
+plt.plot(recall, precision, marker='.', label=f'AP = {ap_score:.2f}')
+plt.title('Precision–Recall Curve (Gift Detection)')
+plt.xlabel('Recall')
+plt.ylabel('Precision')
+plt.legend()
+"""
+print("### Plotting Histogram...")
 plt.title("Cosine Similarity Across All 6 prompts")
+sb.histplot(cosine_scores, bins=20, kde=True, color="skyblue")
+#plt.hist(cosine_scores, label="6 Prompts")
 plt.xlabel("Cosine Similarity Scores")
 plt.ylabel("Frequency")
+"""
 plt.grid(True)
 plt.tight_layout()
 plt.show()
