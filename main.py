@@ -10,14 +10,15 @@ from PIL import Image
 from ultralytics import YOLO  
 
 # Constants
+CM_LABELS = ["Not Gift", "Gift"]
 IMG_RESIZE = (224, 224)
-IMG_PATH = "data/COCO200&Toys" # Data source
+IMG_PATH = "data/Gifts_Dataset" # Data source
 #IMG_PATH = "000000002592.jpg"
 LIST_SIZE = 6
 NUM_IMGS = 215
 PROMPTS = ["a gift received", "not a gift", "a toy", "a memento", "a birthday present", "a souvenir"] # prompts
 TRUE_LABELS = [1, 0, 1, 0, 1, 1] # Ground Truth of what is acceptable as a 'gift' from the prompts
-THRESHOLD = 0.7 # acceptance threshold
+THRESHOLD = 0.6 # acceptance threshold
 DIVISION_MATRIX = [NUM_IMGS] * LIST_SIZE # [215]*6 = [215, 215, 215, 215, 215, 215]
 
 # Load models
@@ -83,6 +84,7 @@ except:
 
 #img = img.resize(IMG_RESIZE)
 
+# Crop image to bbox size
 print("### Cropping Images...")
 try:
     crops = []
@@ -163,7 +165,7 @@ preds_avg = [0] * LIST_SIZE # List to store average totals of all six prediction
 try:
     cosine_scores = []
     text_features = text_features(PROMPTS)
-    for img in crops:  # your object detections as PIL Images
+    for img in crops:  # object detections as PIL Images
         img_features = image_features(img)
         scores = Compare(img, PROMPTS)
         print(scores)
@@ -181,26 +183,29 @@ except:
     print("--- Could not get scores !! ---")
     exit() # end program
 
-print("### CONFUSION MATRIX ###")
+# ### CONFUSION MATRIX ###
+print("### Plotting Confusion Matrix...")
 predicted_labels = [1 if score > THRESHOLD else 0 for score in preds_avg]
 
 # Create the confusion matrix
 cm = confusion_matrix(TRUE_LABELS, predicted_labels)
-ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=["Not Gift", "Gift"]).plot()
+print(cm)
+ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=CM_LABELS).plot()
 
+# ### PR CURVE ###
 # Compute precision-recall values
 precision, recall, thresholds = precision_recall_curve(TRUE_LABELS, preds_avg)
 ap_score = average_precision_score(TRUE_LABELS, preds_avg)
 
-
 plt.figure(figsize=(8,5))
 print("### Plotting PR Curve...")
-plt.plot(recall, precision, marker='.', label=f'AP = {ap_score:.2f}')
+plt.plot(recall, precision, marker='X', label=f'AP = {ap_score:.2f}')
 plt.title('Precision–Recall Curve (Gift Detection)')
 plt.xlabel('Recall')
 plt.ylabel('Precision')
 plt.legend()
 """
+# ### HISTOGRAM ###
 print("### Plotting Histogram...")
 plt.title("Cosine Similarity Across All 6 prompts")
 sb.histplot(cosine_scores, bins=20, kde=True, color="skyblue")
