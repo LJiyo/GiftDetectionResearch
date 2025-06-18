@@ -14,12 +14,12 @@ CM_LABELS = ["Not Gift", "Gift"]
 IMG_RESIZE = (224, 224)
 IMG_PATH = "data/Gifts_Dataset" # Data source
 #IMG_PATH = "000000002592.jpg"
-LIST_SIZE = 6
-NUM_IMGS = 215
+PROMPT_LIST_SIZE = 6
+NUM_IMGS = 200
 PROMPTS = ["a gift received", "not a gift", "a toy", "a memento", "a birthday present", "a souvenir"] # prompts
 TRUE_LABELS = [1, 0, 1, 0, 1, 1] # Ground Truth of what is acceptable as a 'gift' from the prompts
 THRESHOLD = 0.6 # acceptance threshold
-DIVISION_MATRIX = [NUM_IMGS] * LIST_SIZE # [215]*6 = [215, 215, 215, 215, 215, 215]
+#DIVISION_MATRIX = [NUM_IMGS] * PROMPT_LIST_SIZE # [200]*6 = [200, 200, 200, 200, 200, 200]
 
 # Load models
 print("### Loading CLIP Model: ViT-L/14 ###")
@@ -160,7 +160,7 @@ for i, box in enumerate(boundboxes):
 print("=== ### Results ### ===")
 print("### Getting Cosine Scores...")
 
-preds_avg = [0] * LIST_SIZE # List to store average totals of all six predictions
+preds_avg = [0] * PROMPT_LIST_SIZE # List to store average totals of all six predictions
 # for testing outside try  statement
 try:
     cosine_scores = []
