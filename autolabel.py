@@ -45,4 +45,4 @@ for path in image_path3:
         print("Error Labelling for: " + path)
         exit()
       
-print(true_labels)
+#print(true_labels)
