@@ -13,13 +13,21 @@ from ultralytics import YOLO
 CM_LABELS = ["Not Gift", "Gift"]
 IMG_RESIZE = (224, 224)
 IMG_PATH = "data/Gifts_Dataset" # Data source
-#IMG_PATH = "000000002592.jpg"
+#IMG_PATH = "000000002592.jpg" # Single image testing
 PROMPT_LIST_SIZE = 6
 NUM_IMGS = 200
-PROMPTS = ["a gift received", "not a gift", "a toy", "a memento", "a birthday present", "a souvenir"] # prompts
-TRUE_LABELS = [1, 0, 1, 0, 1, 1] # Ground Truth of what is acceptable as a 'gift' from the prompts
+PROMPTS = [
+    "a photo of a gift",                # 0
+    "a celebratory present",            # 1 
+    "a photo of a toy",                 # 2
+    "a photo of a grocery item",        # 3 (non-gift)
+    "a photo of a birthday present",    # 4 
+    "a photo of a tool"]                # 5 (non-gift)
+GIFT_IDX = [0, 1, 2, 4]
+NON_GIFT_IDX = [3, 5]
+TRUE_LABELS = [1, 1, 1, 0, 1, 0] # Ground Truth of what is acceptable as a 'gift' from the prompts
 THRESHOLD = 0.6 # acceptance threshold
-#DIVISION_MATRIX = [NUM_IMGS] * PROMPT_LIST_SIZE # [200]*6 = [200, 200, 200, 200, 200, 200]
+
 
 # Load models
 print("### Loading CLIP Model: ViT-L/14 ###")
@@ -69,7 +77,7 @@ def Compare(image, text):
         return np.ravel(probs)
 
 # =====================================
-# Load image
+# Load image and detect with YOLO
 try:
     print("## Loading image from path...")
     # Yolov5 detection
@@ -157,28 +165,34 @@ for i, box in enumerate(boundboxes):
 """
 
 # Visualise results
-print("=== ### Results ### ===")
+print("======== ### Results ### ========")
 print("### Getting Cosine Scores...")
-
-preds_avg = [0] * PROMPT_LIST_SIZE # List to store average totals of all six predictions
-# for testing outside try  statement
+prompt_sums = np.zeros(PROMPT_LIST_SIZE) # List for totalling prompt cosine scores
+preds_avg = np.zeros(PROMPT_LIST_SIZE) # List to store average totals of all six predictions
 try:
-    cosine_scores = []
+    cosine_scores = [] # List of individual cosine scores
     text_features = text_features(PROMPTS)
     for img in crops:  # object detections as PIL Images
         img_features = image_features(img)
-        scores = Compare(img, PROMPTS)
-        print(scores)
+        score = Compare(img, PROMPTS) # outputs a (6,) shape of scores for all 6 prompts
+        prompt_sums += score
+        print(score)
 
-        index = scores.argmax() # index of max score 
-        val = scores.max() # max value within scores
-        preds_avg[index] += val
+        """"
+        index = score.argmax() # index of max score 
+        val = score.max() # max value within scores
+        preds_avg[index] += val  # iterative total
         print("preds_avg for: ", index, " is ", preds_avg[index])
-    cosine_scores.append(scores) 
+        """
+    cosine_scores.append(score) 
     # averages for each prompt
+    prompt_avgs = prompt_sums / len(crops)
+    print("Prompt averages: ", prompt_avgs)
+    """
     for preds in preds_avg:
         preds = preds/NUM_IMGS
     print("Preds_avg", preds_avg)
+    """
 except:
     print("--- Could not get scores !! ---")
     exit() # end program
@@ -194,8 +208,8 @@ ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=CM_LABELS).plot()
 
 # ### PR CURVE ###
 # Compute precision-recall values
-precision, recall, thresholds = precision_recall_curve(TRUE_LABELS, preds_avg)
-ap_score = average_precision_score(TRUE_LABELS, preds_avg)
+precision, recall, thresholds = precision_recall_curve(TRUE_LABELS, prompt_avgs)
+ap_score = average_precision_score(TRUE_LABELS, prompt_avgs)
 
 plt.figure(figsize=(8,5))
 print("### Plotting PR Curve...")
